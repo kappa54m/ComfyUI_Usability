@@ -1,2 +1,5 @@
 __pycache__/
 *.sw*
+*.DS_Store
+*.*.py*
+*.*.js*
