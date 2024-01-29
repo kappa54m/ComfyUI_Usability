@@ -17,11 +17,12 @@ class KLoadImageDedup:
         files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
         return {
             "required": {
-                    "image": (sorted(files), {
-                                "image_upload_dedup": True
-                            }),
+                "image": (sorted(files), {
+                            "image_upload_dedup": True
+                        }),
             },
             "optional": {
+                "overwrite_option": (['no_overwrite', 'input_filename', 'last_rename'], ),
             },
         }
 
@@ -29,7 +30,7 @@ class KLoadImageDedup:
 
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
-    def load_image(self, image):
+    def load_image(self, image, overwrite_option=None):
         image_path = Path(folder_paths.get_annotated_filepath(image))
         image_fn = image_path.name
         im = Image.open(str(image_path))

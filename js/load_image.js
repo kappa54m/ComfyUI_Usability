@@ -16,6 +16,7 @@ app.registerExtension({
 			// Ref: ComfyWidgets.IMAGEUPLOAD (https://github.com/comfyanonymous/ComfyUI/blob/7f4725f6b3f72dd8bdb60dae5dd2c3e943263bcf/web/scripts/widgets.js#L359)
 			IMAGEUPLOAD_DEDUP(node, inputName, inputData, app) {
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
+
 				let uploadWidget;
 
 				function showImage(name) {
@@ -87,9 +88,11 @@ app.registerExtension({
 						// Wrap file in formdata so it includes filename
 						const body = new FormData();
 						body.append("image", file);
-						body.append("overwrite", "1");
+						const overwriteWidget = node.widgets.find(w => w.name === "overwrite_option");
+						body.append("overwrite", overwriteWidget.value);
 						if (pasted) body.append("subfolder", "pasted");
-						const resp = await api.fetchApi("/upload/image", {
+
+						const resp = await api.fetchApi("/kap/upload/image-dedup", {
 							method: "POST",
 							body,
 						});
