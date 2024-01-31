@@ -96,8 +96,8 @@ class KLoadImageByPath:
             "required": {
                 "image": ("STRING", {
                             "default": "/path/to/image.psd",
+                            "kap_load_image_by_path": True,
                         }),
-                "kap_load_image_by_path": True,
             },
             "optional": {
             },

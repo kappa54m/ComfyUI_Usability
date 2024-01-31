@@ -1,3 +1,5 @@
+from .common import update_watchlist, get_imagemagick_exe
+
 from server import PromptServer
 import folder_paths
 
@@ -6,18 +8,153 @@ from aiohttp import web
 import os
 import os.path as osp
 from pathlib import Path
+import subprocess
+import shutil
 import hashlib
 import re
+import traceback
+import json
 
 
 routes = PromptServer.instance.routes
+magick_exe = get_imagemagick_exe()
 
 
 @routes.post('/kap/upload/image-dedup')
-async def upload_image_dedup(req):
+async def upload_image_dedup_endpoint(req):
     post = await req.post()
     return image_upload_dedup(post)
 
+
+@routes.post('/kap/upload/update-preview')
+async def update_preview_endpoint(req):
+    post = await req.post()
+
+    img_fp = post.get('image_path')
+    preview_gen_d = generate_preview(fp)
+    if not preview_gen_d['success']:
+        return web.Response(status=400)
+    else:
+        return web.json_response({
+            'preview_filename': preview_gen_d['preview_filename'],
+            'preview_filepath': preview_gen_d['preview_filepath'],
+        })
+
+
+@routes.post('/kap/upload/update-watchlist')
+async def update_watchlist_endpoint(req):
+    post = await req.post()
+
+    img_fps = json.loads(post.get("all_image_paths"))
+
+    # Update watchlist
+    watchlist = []
+    temp_dir = folder_paths.get_temp_directory()
+    successful_file_indices = []
+    for ifp, fp in enumerate(img_fps):
+        if not osp.isfile(fp):
+            print("update_preview - invalid file: '{}'".format(fp))
+            continue
+
+        # Generate preview file
+        preview_gen_d = generate_preview(fp)
+        if not preview_gen_d['success']:
+            print("Failed to generate preview for '{}'".format(fp))
+            continue
+
+        def on_modified(_evt, fp=fp):
+            print("'{}' modified".format(fp))
+            _preview_gen_d = generate_preview(fp)
+            if not _preview_gen_d['success']:
+                print("Failed to generate preview for '{}'".format(fp))
+            else:
+                signal_update_preview(Path(fp), _preview_gen_d['preview_filename'])
+
+        watchlist.append({
+            'path': fp,
+            'on_modified': on_modified,
+            'extra': {
+                'preview_name': preview_gen_d['preview_filename'],
+                'preview_path': preview_gen_d['preview_filepath'],
+            }
+        })
+        successful_file_indices.append(ifp)
+
+    update_watchlist(watchlist)
+
+    preview_names_for_resp = []
+    for ifp, fp in enumerate(img_fps):
+        if ifp not in successful_file_indices:
+            preview_names_for_resp.append("")
+        else:
+            preview_names_for_resp.append([w['extra']['preview_name'] for w in watchlist if w['path'] == fp][0])
+    return web.json_response({
+        "success": [i in successful_file_indices for i in range(len(img_fps))],
+        "preview_names": preview_names_for_resp,
+        "preview_images_type": "temp"
+    })
+
+
+def generate_preview(fp):
+    preview_fn_noext = "preview_" + hashlib.md5(fp.encode('utf-8')).hexdigest()
+    ext = osp.splitext(fp)[1][1:].lower()
+    need_conversion = False
+    if ext in ('jpg', 'jpeg', 'png', 'webp', 'gif'):
+        preview_fn = preview_fn_noext + "." + ext
+    elif ext in ('psd', 'xcf'):
+        preview_fn = preview_fn_noext + ".png"
+        need_conversion = True
+    else:
+        print("Unrecognized image format: {}".format(fp))
+        preview_fn = None
+
+    if not preview_fn:
+        return {'success': False}
+
+    temp_dir = folder_paths.get_temp_directory()
+    preview_fp = osp.join(temp_dir, preview_fn)
+
+    os.makedirs(temp_dir, exist_ok=True)
+    success = True
+    if not need_conversion:
+        if osp.isdir(preview_fp):
+            shutil.rmtree(preview_fp)
+        shutil.copy(fp, preview_fp)
+    else:
+        try:
+            print("Converting '{}' to png..".format(fp))
+            return_code = subprocess.call([magick_exe, str(fp), preview_fp])
+            success = return_code == 0
+        except subprocess.CalledProcessError:
+            print("Unable to convert image to png: '{}':".format(fp))
+            traceback.print_exc()
+            success = False
+
+    if success:
+        print("Preview for '{}' generated at '{}'".format(fp, preview_fp))
+
+    return {
+        'success': success,
+        'preview_filename': preview_fn,
+        'preview_filepath': preview_fp,
+    }
+
+
+def signal_update_preview(image_path, preview_filename):
+    preview_path = Path(folder_paths.get_temp_directory(), preview_filename)
+    if not preview_path.is_file():
+        print("Preview file does not exist: '{}'".format(preview_path))
+        return False
+
+    d = {
+        "path": str(image_path),
+        "preview_filename": preview_filename,
+        "preview_type": "temp"
+    }
+
+    PromptServer.instance.send_sync("kap-update-preview", d)
+
+    return True
 
 # Based on https://github.com/comfyanonymous/ComfyUI/blob/7f4725f6b3f72dd8bdb60dae5dd2c3e943263bcf/server.py
 def image_upload_dedup(post, image_save_function=None):
