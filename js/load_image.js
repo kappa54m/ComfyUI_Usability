@@ -3,10 +3,10 @@ import { api } from "../../../scripts/api.js"
 
 // Load image by path
 app.registerExtension({
-	name: "kap.loadimage.bypath",
+	name: "kap.loadimage.dedup",
 
 	async beforeRegisterNodeDef(nodeType, nodeData, app) {
-		if (nodeData?.input?.required?.image?.[1]?.image_upload_dedup === true) {
+		if (nodeData?.input?.required?.image?.[1]?.kap_load_image_dedup === true) {
 			nodeData.input.required.upload = ["IMAGEUPLOAD_DEDUP"];
 		}
 	},
