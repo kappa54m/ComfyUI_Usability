@@ -34,13 +34,7 @@ function updatePreviewSignalHandle(evt) {
 
 	for (const node of uploadByPathNodes) {
 		try {
-			let doUpdate = false;
-			const pathVals = node.widgets?.filter(w => w.name == "image").map(w => w.getPath());   //map(w => getImagePathFromWidgetValue(w));
-			if (pathVals.length >= 1 && pathVals[0] === ogPath) {
-				doUpdate = true;
-			}
-			//doUpdate = true;
-
+			const doUpdate = !!(node.getPath?.()) && (ogPath === node.getPath());
 			if (doUpdate) {
 				console.log("Update preview for node " + node.id);
 				showImageOnNode(node, name, imageType);
@@ -225,7 +219,7 @@ app.registerExtension({
 
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
 
-				Object.assign(imageWidget, {  // Better to use Object.defineProperty?
+				Object.assign(node, {  // Better to use Object.defineProperty?
 					getPath: function() {
 						let path = imageWidget.value;
 						if ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'"))) {
@@ -287,7 +281,7 @@ app.registerExtension({
 
 				async function updatePreview() {
 					const body = new FormData();
-					body.append("image_path", imageWidget.getPath());
+					body.append("image_path", node.getPath());
 					const resp = await api.fetchApi("/kap/upload/update-preview", {
 						method: "POST",
 						body,
@@ -305,14 +299,13 @@ app.registerExtension({
 					try {
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
-						allImagePaths.push(imageWidget.getPath());
+						allImagePaths.push(node.getPath());
 						for (const nd of uploadByPathNodes) {
 							if (nd.id === node.id)
 								continue;
-							const pathVals = nd.widgets?.filter(w => w.name == "image").map(w => w.getPath());
-							if (pathVals.length >= 1) {
-								allImagePaths.push(pathVals[0]);
-							}
+							const path = nd.getPath?.();
+							if (path)
+								allImagePaths.push(path);
 						}
 
 						const body = new FormData();
@@ -334,7 +327,7 @@ app.registerExtension({
 								}
 							} else {
 								// TODO Display error more elegantly
-								alert(`Generating preview for '${imageWidget.getPath()}' was not successful (node id: ${node.id})`);
+								alert(`Generating preview for '${node.getPath()}' was not successful (node id: ${node.id})`);
 							}
 
 						} else {
