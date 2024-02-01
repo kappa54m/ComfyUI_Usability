@@ -35,7 +35,7 @@ function updatePreviewSignalHandle(evt) {
 	for (const node of uploadByPathNodes) {
 		try {
 			let doUpdate = false;
-			const pathVals = node.widgets?.filter(w => w.name == "image").map(w => w.value);
+			const pathVals = node.widgets?.filter(w => w.name == "image").map(w => w.getPath());   //map(w => getImagePathFromWidgetValue(w));
 			if (pathVals.length >= 1 && pathVals[0] === ogPath) {
 				doUpdate = true;
 			}
@@ -220,9 +220,20 @@ app.registerExtension({
 			},
 
 			IMAGEUPLOAD_BYPATH(node, inputName, inputData, app) {
+				// Widget returned
+				let refreshPreviewWidget;
+
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
 
-				let refreshPreviewWidget;
+				Object.assign(imageWidget, {  // Better to use Object.defineProperty?
+					getPath: function() {
+						let path = imageWidget.value;
+						if ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'"))) {
+							path = path.substring(1, path.length - 1);
+						}
+						return path;
+					},
+				});
 
 				var default_value = imageWidget.value;
 				Object.defineProperty(imageWidget, "value", {
@@ -274,13 +285,9 @@ app.registerExtension({
 					}
 				});
 
-				function getImagePath() {
-					return imageWidget.value;
-				}
-
 				async function updatePreview() {
 					const body = new FormData();
-					body.append("image_path", getImagePath());
+					body.append("image_path", imageWidget.getPath());
 					const resp = await api.fetchApi("/kap/upload/update-preview", {
 						method: "POST",
 						body,
@@ -298,11 +305,11 @@ app.registerExtension({
 					try {
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
-						allImagePaths.push(getImagePath());
+						allImagePaths.push(imageWidget.getPath());
 						for (const nd of uploadByPathNodes) {
 							if (nd.id === node.id)
 								continue;
-							const pathVals = nd.widgets?.filter(w => w.name == "image").map(w => w.value);
+							const pathVals = nd.widgets?.filter(w => w.name == "image").map(w => w.getPath());
 							if (pathVals.length >= 1) {
 								allImagePaths.push(pathVals[0]);
 							}
@@ -327,8 +334,7 @@ app.registerExtension({
 								}
 							} else {
 								// TODO Display error more elegantly
-								alert(`Generating preview for '${getImagePath()}' was not successful (node id: ${node.id})`);
-
+								alert(`Generating preview for '${imageWidget.getPath()}' was not successful (node id: ${node.id})`);
 							}
 
 						} else {
