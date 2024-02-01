@@ -2,8 +2,6 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js"
 
 
-var uploadByPathNodes = [];
-
 function showImageOnNode(node, name, imageType) {
 	const img = new Image();
 	img.onload = () => {
@@ -22,6 +20,12 @@ function showImageOnNode(node, name, imageType) {
 	node.setSizeForImage?.();
 }
 
+
+// Global variables
+var uploadByPathNodes = [];  // Used by widget: IMAGEUPLOAD_BYPATH
+
+
+// Handle Python -> JS messages
 
 function updatePreviewSignalHandle(evt) {
 	const name = evt.detail.preview_filename;
@@ -71,19 +75,7 @@ app.registerExtension({
 				let uploadWidget;
 
 				function showImage(name) {
-					const img = new Image();
-					img.onload = () => {
-						node.imgs = [img];
-						app.graph.setDirtyCanvas(true);
-					};
-					let folder_separator = name.lastIndexOf("/");
-					let subfolder = "";
-					if (folder_separator > -1) {
-						subfolder = name.substring(0, folder_separator);
-						name = name.substring(folder_separator + 1);
-					}
-					img.src = api.apiURL(`/view?filename=${encodeURIComponent(name)}&type=input&subfolder=${subfolder}${app.getPreviewFormatParam()}${app.getRandParam()}`);
-					node.setSizeForImage?.();
+					showImageOnNode(node, name, "input");
 				}
 
 				var default_value = imageWidget.value;
@@ -266,8 +258,7 @@ app.registerExtension({
 				const cb = node.callback;
 				imageWidget.callback = function () {
 					console.log("image widget (string) callback");
-					//showImage(imageWidget.value);
-					updateWatchlist(true);
+					updateWatchlist({ updateNode: true });
 					if (cb) {
 						return cb.apply(this, arguments);
 					}
@@ -279,15 +270,35 @@ app.registerExtension({
 				requestAnimationFrame(() => {
 					if (imageWidget.value) {
 						//showImageOnNode(node, imageWidget.value);
-						updateWatchlist(true);
+						updateWatchlist({ updateNode: true });
 					}
 				});
 
-				async function updateWatchlist(updateNode) {
+				function getImagePath() {
+					return imageWidget.value;
+				}
+
+				async function updatePreview() {
+					const body = new FormData();
+					body.append("image_path", getImagePath());
+					const resp = await api.fetchApi("/kap/upload/update-preview", {
+						method: "POST",
+						body,
+					});
+					
+					if (resp.status === 200) {
+						const data = await resp.json();
+						const previewName = data.preview_filename;
+						const previewImageType = data.preview_image_type;
+						showImageOnNode(node, previewName, previewImageType);
+					}
+				}
+
+				async function updateWatchlist({ updateNode = true }) {
 					try {
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
-						allImagePaths.push(imageWidget.value);
+						allImagePaths.push(getImagePath());
 						for (const nd of uploadByPathNodes) {
 							if (nd.id === node.id)
 								continue;
@@ -316,7 +327,7 @@ app.registerExtension({
 								}
 							} else {
 								// TODO Display error more elegantly
-								alert(`Generating preview for '${imageWidget.value}' was not successful (node id: ${node.id})`);
+								alert(`Generating preview for '${getImagePath()}' was not successful (node id: ${node.id})`);
 
 							}
 
@@ -351,7 +362,7 @@ app.registerExtension({
 
 				// Refresh preview button widget
 				refreshPreviewWidget = node.addWidget("button", null, null, () => {
-					updateWatchlist(true);
+					updatePreview();
 				});
 				refreshPreviewWidget.label = "refresh preview";
 				refreshPreviewWidget.serialize = false;

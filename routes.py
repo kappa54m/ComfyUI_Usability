@@ -31,13 +31,20 @@ async def update_preview_endpoint(req):
     post = await req.post()
 
     img_fp = post.get('image_path')
-    preview_gen_d = generate_preview(fp)
-    if not preview_gen_d['success']:
+    success = osp.isfile(img_fp)
+    if not success:
+        print("'{}' is not a valid image file. Failed to update preview.".format(img_fp))
+    else:
+        preview_gen_d = generate_preview(img_fp)
+        success = preview_gen_d['success']
+
+    if not success:
         return web.Response(status=400)
     else:
         return web.json_response({
             'preview_filename': preview_gen_d['preview_filename'],
             'preview_filepath': preview_gen_d['preview_filepath'],
+            'preview_image_type': "temp",
         })
 
 
@@ -96,6 +103,9 @@ async def update_watchlist_endpoint(req):
 
 
 def generate_preview(fp):
+    """
+    Generates preview image inside [ComfyUI]/temp/ of the image `fp` points to.
+    """
     preview_fn_noext = "preview_" + hashlib.md5(fp.encode('utf-8')).hexdigest()
     ext = osp.splitext(fp)[1][1:].lower()
     need_conversion = False
@@ -141,6 +151,10 @@ def generate_preview(fp):
 
 
 def signal_update_preview(image_path, preview_filename):
+    """
+        Message to javascript to update preview image to the new one (that should have been generated on the
+        server via generate_preview prior.
+    """
     preview_path = Path(folder_paths.get_temp_directory(), preview_filename)
     if not preview_path.is_file():
         print("Preview file does not exist: '{}'".format(preview_path))
