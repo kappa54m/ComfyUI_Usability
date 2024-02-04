@@ -32,16 +32,26 @@ function updatePreviewSignalHandle(evt) {
 	const imageType = evt.detail.preview_type;
 	const ogPath = evt.detail.path;
 
-	for (const node of uploadByPathNodes) {
-		try {
-			const doUpdate = !!(node.getPath?.()) && (ogPath === node.getPath());
-			if (doUpdate) {
-				console.log("Update preview for node " + node.id);
-				showImageOnNode(node, name, imageType);
+	for (let i = uploadByPathNodes.length - 1; i >=0; i--) {
+		const node = uploadByPathNodes[i];
+		let stopTrackingNode = false;
+		if (!node || !(node.id) || !(app.graph._nodes_by_id[node.id])) {
+			stopTrackingNode = true;
+		} else {
+			try {
+				const doUpdate = !!(node.getPath()) && (ogPath === node.getPath());
+				if (doUpdate) {
+					console.log("Update preview for node " + node.id);
+					showImageOnNode(node, name, imageType);
+				}
+			} catch (error) { // TODO handle deleted nodes
+				console.log(error);
+				stopTrackingNode = true;
 			}
-		} catch (error) { // TODO handle deleted nodes
-			console.log(error);
 		}
+		
+		if (stopTrackingNode)
+			uploadByPathNodes.splice(i, 1);
 	}
 }
 
@@ -262,7 +272,6 @@ app.registerExtension({
 				// Add our own callback to the string widget to render an image when it changes
 				const cb = node.callback;
 				imageWidget.callback = function () {
-					console.log("image widget (string) callback");
 					updateWatchlist({ updateNode: true });
 					if (cb) {
 						return cb.apply(this, arguments);
@@ -300,12 +309,17 @@ app.registerExtension({
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
 						allImagePaths.push(node.getPath());
-						for (const nd of uploadByPathNodes) {
-							if (nd.id === node.id)
-								continue;
-							const path = nd.getPath?.();
-							if (path)
-								allImagePaths.push(path);
+						for (let i = uploadByPathNodes.length - 1; i >= 0; i--) {
+							const nd = uploadByPathNodes[i];
+							if (!nd || !(nd.id) || !(app.graph._nodes_by_id[nd.id])) {
+								uploadByPathNodes.splice(i, 1);
+							} else {
+								if (nd.id === node.id)
+									continue;
+								const path = nd.getPath?.();
+								if (path)
+									allImagePaths.push(path);
+							}
 						}
 
 						const body = new FormData();
@@ -401,6 +415,7 @@ app.registerExtension({
 				//}
 
 				uploadByPathNodes.push(node);
+				// node.id is undefined here
 
 				return { widget: refreshPreviewWidget };
 			},
