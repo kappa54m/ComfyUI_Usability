@@ -225,7 +225,7 @@ app.registerExtension({
 
 			IMAGEUPLOAD_BYPATH(node, inputName, inputData, app) {
 				// Widget returned
-				let refreshPreviewWidget;
+				//let refreshPreviewWidget;
 
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
 
@@ -352,72 +352,25 @@ app.registerExtension({
 					}
 				}
 
-				// NOT POSSIBLE TO READ FILEPATHS IN JS https://stackoverflow.com/questions/15201071/how-to-get-full-path-of-selected-file-on-change-of-input-type-file-using-jav 
-				//const fileInput = document.createElement("input");
-				//Object.assign(fileInput, {
-				//	type: "file",
-				//	accept: "image/jpeg,image/png,image/webp",
-				//	style: "display: none",
-				//	onchange: async () => {
-				//		if (fileInput.files.length) {
-				//			await uploadPath(fileInput.files[0], true);
-				//		}
-				//	},
-				//});
-				//document.body.append(fileInput);
-
-				// Create the button widget for selecting the files
-				//uploadWidget = node.addWidget("button", inputName, "image", () => {
-				//	fileInput.click();
-				//});
-				//uploadWidget.label = "choose file to upload";
-				//uploadWidget.serialize = false;
-
 				// Refresh preview button widget
-				refreshPreviewWidget = node.addWidget("button", null, null, () => {
+				const refreshPreviewWidget = node.addWidget("button", null, null, () => {
 					updatePreview();
 				});
 				refreshPreviewWidget.label = "refresh preview";
 				refreshPreviewWidget.serialize = false;
 
-				// Add handler to check if an image is being dragged over our node
-				//node.onDragOver = function (e) {
-				//	if (e.dataTransfer && e.dataTransfer.items) {
-				//		const image = [...e.dataTransfer.items].find((f) => f.kind === "file");
-				//		return !!image;
-				//	}
+				// Refresh watchers button widget
+				const refreshWatchWidget = node.addWidget("button", null, null, () => {
+					updateWatchlist({ updateNode: true });
+				});
+				refreshWatchWidget.label = "refresh watchers for preview";
+				refreshWatchWidget.serialize = false;
 
-				//	return false;
-				//};
-
-				//// On drop upload files
-				//node.onDragDrop = function (e) {
-				//	console.log("onDragDrop called");
-				//	let handled = false;
-				//	for (const file of e.dataTransfer.files) {
-				//		if (file.type.startsWith("image/")) {
-				//			uploadPath(file, !handled); // Dont await these, any order is fine, only update on first one
-				//			handled = true;
-				//		}
-				//	}
-
-				//	return handled;
-				//};
-
-				//node.pasteFile = function(file) {
-				//	if (file.type.startsWith("image/")) {
-				//		const is_pasted = (file.name === "image.png") &&
-				//						  (file.lastModified - Date.now() < 2000);
-				//		uploadPath(file, true, is_pasted);
-				//		return true;
-				//	}
-				//	return false;
-				//}
-
+				// 
 				uploadByPathNodes.push(node);
-				// node.id is undefined here
 
-				return { widget: refreshPreviewWidget };
+				//return { widget: refreshPreviewWidget };
+				return {};
 			},
 		};
 	},
