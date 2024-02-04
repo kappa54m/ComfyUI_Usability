@@ -40,7 +40,7 @@ def get_watchlist():
         return list(watchdog_d.keys())
 
 
-def update_watchlist(new_watchlist: typing.List[typing.Dict]):
+def update_watchlist(new_watchlist: typing.List[typing.Dict], expanduser=True):
     with watchdog_mutex:
         for fp, d in watchdog_d.items():
             assert d['observer'] is watchdog_observer
@@ -49,23 +49,25 @@ def update_watchlist(new_watchlist: typing.List[typing.Dict]):
         watchdog_d.clear()
         for w_info in new_watchlist:
             filepath = w_info['path']
-            if osp.isfile(filepath):
+            fp_real = str(osp.expanduser(filepath) if expanduser else filepath)
+            if osp.isfile(fp_real):
                 o = watchdog_observer
                 h = Handler()
                 h.on_modified = w_info.get('on_modified', lambda e: None)
                 h.on_created = w_info.get('on_modified', lambda e: None)
                 h.on_modified = w_info.get('on_modified', lambda e: None)
-                w = o.schedule(h, path=str(filepath))
+                w = o.schedule(h, path=fp_real)
                 if not o.is_alive():
                     o.start()
                 d = {
                     'observer': o,
                     'watcher': w,
+                    'filepath_given': filepath,
                 }
-                watchdog_d[str(filepath)] = d
+                watchdog_d[fp_real] = d
             else:
                 print("Invalid file: '{}'; will not be added to watchlist.".format(filepath))
-        print("Updated watchlist watching {} files".format(len(watchdog_d)))
+        print("Updated watchlist watching {} file(s)".format(len(watchdog_d)))
 
 
 def get_imagemagick_exe():

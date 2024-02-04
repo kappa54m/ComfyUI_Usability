@@ -59,23 +59,23 @@ async def update_watchlist_endpoint(req):
     temp_dir = folder_paths.get_temp_directory()
     successful_file_indices = []
     for ifp, fp in enumerate(img_fps):
-        if not osp.isfile(fp):
+        if not osp.isfile(osp.expanduser(fp)):
             print("update_preview - invalid file: '{}'".format(fp))
             continue
 
         # Generate preview file
-        preview_gen_d = generate_preview(fp)
+        preview_gen_d = generate_preview(fp, expanduser=True)
         if not preview_gen_d['success']:
             print("Failed to generate preview for '{}'".format(fp))
             continue
 
         def on_modified(_evt, fp=fp):
             print("'{}' modified".format(fp))
-            _preview_gen_d = generate_preview(fp)
+            _preview_gen_d = generate_preview(fp, expanduser=True)
             if not _preview_gen_d['success']:
                 print("Failed to generate preview for '{}'".format(fp))
             else:
-                signal_update_preview(Path(fp), _preview_gen_d['preview_filename'])
+                signal_update_preview(fp, _preview_gen_d['preview_filename'])
 
         watchlist.append({
             'path': fp,
@@ -87,7 +87,7 @@ async def update_watchlist_endpoint(req):
         })
         successful_file_indices.append(ifp)
 
-    update_watchlist(watchlist)
+    update_watchlist(watchlist, expanduser=True)
 
     preview_names_for_resp = []
     for ifp, fp in enumerate(img_fps):
@@ -102,10 +102,11 @@ async def update_watchlist_endpoint(req):
     })
 
 
-def generate_preview(fp):
+def generate_preview(fp, expanduser=True):
     """
     Generates preview image inside [ComfyUI]/temp/ of the image `fp` points to.
     """
+    fp_real = osp.expanduser(fp) if expanduser else fp
     preview_fn_noext = "preview_" + hashlib.md5(fp.encode('utf-8')).hexdigest()
     ext = osp.splitext(fp)[1][1:].lower()
     need_conversion = False
@@ -129,11 +130,11 @@ def generate_preview(fp):
     if not need_conversion:
         if osp.isdir(preview_fp):
             shutil.rmtree(preview_fp)
-        shutil.copy(fp, preview_fp)
+        shutil.copy(fp_real, preview_fp)
     else:
         try:
             print("Converting '{}' to png..".format(fp))
-            return_code = subprocess.call([magick_exe, str(fp), preview_fp])
+            return_code = subprocess.call([magick_exe, str(fp_real), preview_fp])
             success = return_code == 0
         except subprocess.CalledProcessError:
             print("Unable to convert image to png: '{}':".format(fp))
@@ -150,10 +151,12 @@ def generate_preview(fp):
     }
 
 
-def signal_update_preview(image_path, preview_filename):
+def signal_update_preview(image_fp, preview_filename):
     """
         Message to javascript to update preview image to the new one (that should have been generated on the
         server via generate_preview prior.
+
+        `image_fp` must be the exact string received from the JS side.
     """
     preview_path = Path(folder_paths.get_temp_directory(), preview_filename)
     if not preview_path.is_file():
@@ -161,7 +164,7 @@ def signal_update_preview(image_path, preview_filename):
         return False
 
     d = {
-        "path": str(image_path),
+        "path": image_fp,
         "preview_filename": preview_filename,
         "preview_type": "temp"
     }
