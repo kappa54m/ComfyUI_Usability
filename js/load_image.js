@@ -39,7 +39,7 @@ function updatePreviewSignalHandle(evt) {
 			stopTrackingNode = true;
 		} else {
 			try {
-				const doUpdate = !!(node.getPath()) && (ogPath === node.getPath());
+				const doUpdate = node.isAutoPreviewUpdate() && !!(node.getPath()) && (ogPath === node.getPath());
 				if (doUpdate) {
 					console.log("Update preview for node " + node.id);
 					showImageOnNode(node, name, imageType);
@@ -65,7 +65,8 @@ app.registerExtension({
 		if (nodeData?.input?.required?.image?.[1]?.kap_load_image_dedup === true) {
 			nodeData.input.required.upload = ["IMAGEUPLOAD_DEDUP"];
 		}
-		if (nodeData?.input?.required?.image?.[1]?.kap_load_image_by_path === true) {
+		if (nodeType.comfyClass === "KLoadImageByPath") {
+		//if (nodeData?.input?.required?.image?.[1]?.kap_load_image_by_path === true) {
 			nodeData.input.required.upload = ["IMAGEUPLOAD_BYPATH"];
 		}
 	},
@@ -237,6 +238,10 @@ app.registerExtension({
 						}
 						return path;
 					},
+					isAutoPreviewUpdate: function() {
+						const w = node.widgets.find(w => w.name === "auto_preview_update");
+						return w?.value ?? true;
+					},
 				});
 
 				var default_value = imageWidget.value;
@@ -308,7 +313,9 @@ app.registerExtension({
 					try {
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
-						allImagePaths.push(node.getPath());
+						const selfInWatchlist = node.isAutoPreviewUpdate();
+						if (selfInWatchlist)
+							allImagePaths.push(node.getPath());
 						for (let i = uploadByPathNodes.length - 1; i >= 0; i--) {
 							const nd = uploadByPathNodes[i];
 							if (!nd || !(nd.id) || !(app.graph._nodes_by_id[nd.id])) {
@@ -317,7 +324,7 @@ app.registerExtension({
 								if (nd.id === node.id)
 									continue;
 								const path = nd.getPath?.();
-								if (path)
+								if (path && nd.isAutoPreviewUpdate())
 									allImagePaths.push(path);
 							}
 						}
@@ -333,13 +340,15 @@ app.registerExtension({
 						if (resp.status === 200) {
 							const data = await resp.json();
 							// We are only updating for the image in the current node, which is the first item
-							if (data.success[0]) {
+							if (selfInWatchlist && data.success[0]) {
 								const previewName = data.preview_names[0];
 
 								if (updateNode) {
 									showImageOnNode(node, previewName, data.preview_images_type);
 								}
-							} else {
+							} else if (!selfInWatchlist) {
+								// No preview update
+							}else {
 								// TODO Display error more elegantly
 								alert(`Generating preview for '${node.getPath()}' was not successful (node id: ${node.id})`);
 							}
@@ -365,6 +374,16 @@ app.registerExtension({
 				});
 				refreshWatchWidget.label = "refresh auto preview";
 				refreshWatchWidget.serialize = false;
+
+				// Auto preview update
+				const autoPreviewUpdateWidget = node.addWidget("toggle",
+					"auto_preview_update", true,
+					() => {
+						updateWatchlist({ updateNode: true });
+					}
+				);
+				autoPreviewUpdateWidget.label = "update preview automatically";
+				autoPreviewUpdateWidget.serialize = true;
 
 				// 
 				uploadByPathNodes.push(node);

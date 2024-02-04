@@ -31,11 +31,11 @@ async def update_preview_endpoint(req):
     post = await req.post()
 
     img_fp = post.get('image_path')
-    success = osp.isfile(img_fp)
+    success = osp.isfile(osp.expanduser(img_fp))
     if not success:
         print("'{}' is not a valid image file. Failed to update preview.".format(img_fp))
     else:
-        preview_gen_d = generate_preview(img_fp)
+        preview_gen_d = generate_preview(img_fp, expanduser=True)
         success = preview_gen_d['success']
 
     if not success:

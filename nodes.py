@@ -55,10 +55,14 @@ class KLoadImageByPath:
             "required": {
                 "image": ("STRING", {
                             "default": "/path/to/image.psd",
-                            "kap_load_image_by_path": True,
+                            #"kap_load_image_by_path": True,
                         }),
             },
             "optional": {
+                #"auto_preview_update": ("BOOLEAN", {
+                #        "default": True,
+                #        "display": "update preview automatically",
+                #    }),
             },
             "hidden": {
                 "id": "UNIQUE_ID"
@@ -70,22 +74,21 @@ class KLoadImageByPath:
     RETURN_TYPES = ("IMAGE", "MASK")
 
     FUNCTION = "load_image"
-    def load_image(self, image, overwrite_option=None, id=None):
-        image_path = Path(folder_paths.get_annotated_filepath(image))
+    def load_image(self, image, overwrite_option=None, auto_preview=True, id=None):
+        image_path = Path(folder_paths.get_annotated_filepath(osp.expanduser(image)))
         output_image, output_mask = load_image_comfy(image_path)
         return (output_image, output_mask)
 
     @classmethod
-    def IS_CHANGED(self, image):
-        image_path = Path(image)
+    def IS_CHANGED(self, image, **kw):
         m = hashlib.sha256()
-        with open(image_path, 'rb') as f:
+        with open(osp.expanduser(image), 'rb') as f:
             m.update(f.read())
         return m.digest().hex()
 
     @classmethod
-    def VALIDATE_INPUTS(self, image):
-        if not osp.isfile(image):
+    def VALIDATE_INPUTS(self, image, **kw):
+        if not osp.isfile(osp.expanduser(image)):
             return "Invalid input image: '{}'".format(image)
         return True
 
@@ -93,12 +96,12 @@ class KLoadImageByPath:
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
-    "LoadImageDedup": KLoadImageDedup,
-    "LoadImageByPath": KLoadImageByPath,
+    "KLoadImageDedup": KLoadImageDedup,
+    "KLoadImageByPath": KLoadImageByPath,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LoadImageDedup": "Load Image Dedup",
-    "LoadImageByPath": "Load Image By Path",
+    "KLoadImageDedup": "Load Image Dedup",
+    "KLoadImageByPath": "Load Image By Path",
 }
