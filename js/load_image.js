@@ -353,23 +353,23 @@ app.registerExtension({
 				}
 
 				// Refresh preview button widget
-				const refreshPreviewWidget = node.addWidget("button", null, null, () => {
+				const updatePreviewWidget = node.addWidget("button", null, null, () => {
 					updatePreview();
 				});
-				refreshPreviewWidget.label = "refresh preview";
-				refreshPreviewWidget.serialize = false;
+				updatePreviewWidget.label = "update preview";
+				updatePreviewWidget.serialize = false;
 
 				// Refresh watchers button widget
 				const refreshWatchWidget = node.addWidget("button", null, null, () => {
 					updateWatchlist({ updateNode: true });
 				});
-				refreshWatchWidget.label = "refresh watchers for preview";
+				refreshWatchWidget.label = "refresh auto preview";
 				refreshWatchWidget.serialize = false;
 
 				// 
 				uploadByPathNodes.push(node);
 
-				//return { widget: refreshPreviewWidget };
+				//return { widget: updatePreviewWidget };
 				return {};
 			},
 		};
