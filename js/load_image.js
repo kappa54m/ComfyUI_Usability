@@ -65,7 +65,7 @@ app.registerExtension({
 		if (nodeData?.input?.required?.image?.[1]?.kap_load_image_dedup === true) {
 			nodeData.input.required.upload = ["IMAGEUPLOAD_DEDUP"];
 		}
-		if (nodeType.comfyClass === "KLoadImageByPath") {
+		if (nodeType.comfyClass === "KLoadImageByPathAdvanced" || nodeType.comfyClass === "KLoadImageByPath") {
 		//if (nodeData?.input?.required?.image?.[1]?.kap_load_image_by_path === true) {
 			nodeData.input.required.upload = ["IMAGEUPLOAD_BYPATH"];
 		}
@@ -229,6 +229,7 @@ app.registerExtension({
 				//let refreshPreviewWidget;
 
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
+				const isAdvanced = node.comfyClass === "KLoadImageByPathAdvanced";
 
 				Object.assign(node, {
 					getPath: function() {
@@ -377,14 +378,17 @@ app.registerExtension({
 				refreshWatchWidget.serialize = false;
 
 				// Auto preview update
-				const autoPreviewUpdateWidget = node.addWidget("toggle",
-					"auto_preview_update", true,
-					() => {
-						updateWatchlist({ updateNode: true });
-					}
-				);
-				autoPreviewUpdateWidget.label = "update preview automatically";
-				autoPreviewUpdateWidget.serialize = true;
+				let autoPreviewUpdateWidget = null;
+				if (isAdvanced) {
+					autoPreviewUpdateWidget = node.addWidget("toggle",
+						"auto_preview_update", true,
+						() => {
+							updateWatchlist({ updateNode: true });
+						}
+					);
+					autoPreviewUpdateWidget.label = "update preview automatically";
+					autoPreviewUpdateWidget.serialize = true;
+				}
 
 				// Prefix substitution
 				function updateImageWidgetValue() {
@@ -418,26 +422,31 @@ app.registerExtension({
 					updateWatchlist({ updateNode: true });
 				}
 
-				const enablePrefixSubWidget = node.addWidget("toggle",
-						"enable_prefix_substitution", false,
-						() => { onPrefixChange(); }
-				);
-				enablePrefixSubWidget.label = "enable prefix substitution";
-				enablePrefixSubWidget.serialize = true;
+				let enablePrefixSubWidget = null;
+				let prefixSubSrcWidget = null;
+				let prefixSubDestWidget = null;
+				if (isAdvanced) {
+					enablePrefixSubWidget = node.addWidget("toggle",
+							"enable_prefix_substitution", false,
+							() => { onPrefixChange(); }
+					);
+					enablePrefixSubWidget.label = "enable prefix substitution";
+					enablePrefixSubWidget.serialize = true;
 
-				const prefixSubSrcWidget = node.addWidget("text",
-						"prefix_substitution_source", "/mnt/point/",
-						() => { onPrefixChange(); }
-				);
-				prefixSubSrcWidget.label = "prefix to substitute";
-				prefixSubSrcWidget.serialize = true;
+					prefixSubSrcWidget = node.addWidget("text",
+							"prefix_substitution_source", "/mnt/point/",
+							() => { onPrefixChange(); }
+					);
+					prefixSubSrcWidget.label = "prefix to substitute";
+					prefixSubSrcWidget.serialize = true;
 
-				const prefixSubDestWidget = node.addWidget("text",
-						"prefix_substitution_destination", "~/",
-						() => { onPrefixChange(); }
-				);
-				prefixSubDestWidget.lael = "new prefix";
-				prefixSubDestWidget.serialize = true;
+					prefixSubDestWidget = node.addWidget("text",
+							"prefix_substitution_destination", "~/",
+							() => { onPrefixChange(); }
+					);
+					prefixSubDestWidget.label = "new prefix";
+					prefixSubDestWidget.serialize = true;
+				}
 
 				// 
 				uploadByPathNodes.push(node);

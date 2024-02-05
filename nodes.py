@@ -48,13 +48,13 @@ class KLoadImageDedup:
         return True
 
 
-class KLoadImageByPath:
+class KLoadImageByPathAdvanced:
     @classmethod
     def INPUT_TYPES(clazz):
         return {
             "required": {
                 "image": ("STRING", {
-                            "default": "",#"/path/to/image.psd",
+                            "default": "",
                         }),
             },
             "optional": {
@@ -88,15 +88,21 @@ class KLoadImageByPath:
         return True
 
 
+class KLoadImageByPath(KLoadImageByPathAdvanced):
+    pass
+
+
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
     "KLoadImageDedup": KLoadImageDedup,
     "KLoadImageByPath": KLoadImageByPath,
+    "KLoadImageByPathAdvanced": KLoadImageByPathAdvanced,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
     "KLoadImageDedup": "Load Image Dedup",
     "KLoadImageByPath": "Load Image By Path",
+    "KLoadImageByPathAdvanced": "Load Image By Path (Advanced)",
 }
