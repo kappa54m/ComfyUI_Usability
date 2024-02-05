@@ -44,7 +44,7 @@ function updatePreviewSignalHandle(evt) {
 					console.log("Update preview for node " + node.id);
 					showImageOnNode(node, name, imageType);
 				}
-			} catch (error) { // TODO handle deleted nodes
+			} catch (error) {
 				console.log(error);
 				stopTrackingNode = true;
 			}
@@ -230,12 +230,10 @@ app.registerExtension({
 
 				const imageWidget = node.widgets.find((w) => w.name === (inputData[1]?.widget ?? "image"));
 
-				Object.assign(node, {  // Better to use Object.defineProperty?
+				Object.assign(node, {
 					getPath: function() {
+						updateImageWidgetValue();
 						let path = imageWidget.value;
-						if ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'"))) {
-							path = path.substring(1, path.length - 1);
-						}
 						return path;
 					},
 					isAutoPreviewUpdate: function() {
@@ -244,35 +242,35 @@ app.registerExtension({
 					},
 				});
 
-				var default_value = imageWidget.value;
-				Object.defineProperty(imageWidget, "value", {
-					set : function(value) {
-						this._real_value = value;
-					},
+				//var default_value = imageWidget.value;
+				//Object.defineProperty(imageWidget, "value", {
+				//	set : function(value) {
+				//		this._real_value = value;
+				//	},
 
-					get : function() {
-						let value = "";
-						if (this._real_value) {
-							value = this._real_value;
-						} else {
-							return default_value;
-						}
+				//	get : function() {
+				//		let value = "";
+				//		if (this._real_value) {
+				//			value = this._real_value;
+				//		} else {
+				//			return default_value;
+				//		}
 
-						if (value.filename) {
-							let real_value = value;
-							value = "";
-							if (real_value.subfolder) {
-								value = real_value.subfolder + "/";
-							}
+				//		if (value.filename) {
+				//			let real_value = value;
+				//			value = "";
+				//			if (real_value.subfolder) {
+				//				value = real_value.subfolder + "/";
+				//			}
 
-							value += real_value.filename;
+				//			value += real_value.filename;
 
-							if(real_value.type && real_value.type !== "input")
-								value += ` [${real_value.type}]`;
-						}
-						return value;
-					}
-				});
+				//			if(real_value.type && real_value.type !== "input")
+				//				value += ` [${real_value.type}]`;
+				//		}
+				//		return value;
+				//	}
+				//});
 
 				// Add our own callback to the string widget to render an image when it changes
 				const cb = node.callback;
@@ -306,6 +304,8 @@ app.registerExtension({
 						const previewName = data.preview_filename;
 						const previewImageType = data.preview_image_type;
 						showImageOnNode(node, previewName, previewImageType);
+					} else {
+						alert(`Generating preview for '${node.getPath()}' was not successful (node id: ${node.id})`);
 					}
 				}
 
@@ -313,7 +313,7 @@ app.registerExtension({
 					try {
 						// Watchlist consists of images from all loadbypath widgets, and the first item is the path of the image in the current node
 						const allImagePaths = [];
-						const selfInWatchlist = node.isAutoPreviewUpdate();
+						const selfInWatchlist = node.isAutoPreviewUpdate() && !!(node.getPath());
 						if (selfInWatchlist)
 							allImagePaths.push(node.getPath());
 						for (let i = uploadByPathNodes.length - 1; i >= 0; i--) {
@@ -348,9 +348,10 @@ app.registerExtension({
 								}
 							} else if (!selfInWatchlist) {
 								// No preview update
-							}else {
+							} else {
 								// TODO Display error more elegantly
-								alert(`Generating preview for '${node.getPath()}' was not successful (node id: ${node.id})`);
+								alert(`Generating preview for '${node.getPath()}' was not successful (node id: ${node.id}).` +
+								`\n Watchlist for files for auto preview update refreshed (#=${data.watchlist_size}).`);
 							}
 
 						} else {
@@ -385,8 +386,68 @@ app.registerExtension({
 				autoPreviewUpdateWidget.label = "update preview automatically";
 				autoPreviewUpdateWidget.serialize = true;
 
+				// Prefix substitution
+				function updateImageWidgetValue() {
+					let path = imageWidget.value ?? "";
+
+					if ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'"))) {
+						path = path.substring(1, path.length - 1);
+					}
+
+					if (path && isPrefixSubEnabled()) {
+						const oldPrefix = prefixSubSrcWidget.value;
+						const newPrefix = prefixSubDestWidget.value;
+						if (path.startsWith(oldPrefix)) {
+							path = newPrefix + path.substring(oldPrefix.length);
+						} else {
+							console.log("The path '" + path + "' does not begin with prefix: '" +
+									oldPrefix + "'; nothing to replace.");
+						}
+						console.log(`Path (node id: ${node.id}): '${path}'`);
+					}
+
+					imageWidget.value = path;
+				}
+
+				function isPrefixSubEnabled() {
+					return enablePrefixSubWidget?.value ?? false;
+				}
+
+				function onPrefixChange() {
+					updateImageWidgetValue();
+					updateWatchlist({ updateNode: true });
+				}
+
+				const enablePrefixSubWidget = node.addWidget("toggle",
+						"enable_prefix_substitution", false,
+						() => { onPrefixChange(); }
+				);
+				enablePrefixSubWidget.label = "enable prefix substitution";
+				enablePrefixSubWidget.serialize = true;
+
+				const prefixSubSrcWidget = node.addWidget("text",
+						"prefix_substitution_source", "/mnt/point/",
+						() => { onPrefixChange(); }
+				);
+				prefixSubSrcWidget.label = "prefix to substitute";
+				prefixSubSrcWidget.serialize = true;
+
+				const prefixSubDestWidget = node.addWidget("text",
+						"prefix_substitution_destination", "~/",
+						() => { onPrefixChange(); }
+				);
+				prefixSubDestWidget.lael = "new prefix";
+				prefixSubDestWidget.serialize = true;
+
 				// 
 				uploadByPathNodes.push(node);
+
+				node.onRemoved = function() {
+					for (let i = uploadByPathNodes.length - 1; i >= 0; i--) {
+						if (uploadByPathNodes[i].id === node.id)
+							uploadByPathNodes.splice(i, 1);
+					}
+				}
 
 				//return { widget: updatePreviewWidget };
 				return {};

@@ -54,15 +54,10 @@ class KLoadImageByPath:
         return {
             "required": {
                 "image": ("STRING", {
-                            "default": "/path/to/image.psd",
-                            #"kap_load_image_by_path": True,
+                            "default": "",#"/path/to/image.psd",
                         }),
             },
             "optional": {
-                #"auto_preview_update": ("BOOLEAN", {
-                #        "default": True,
-                #        "display": "update preview automatically",
-                #    }),
             },
             "hidden": {
                 "id": "UNIQUE_ID"

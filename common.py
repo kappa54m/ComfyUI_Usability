@@ -79,7 +79,7 @@ def get_imagemagick_exe():
 
 def load_image_comfy(img_path, pil_im=None):
     """
-        Reference implementation: nodes.LoadImage.load_image
+        Implementation reference: nodes.LoadImage.load_image
         https://github.com/comfyanonymous/ComfyUI/blob/7f4725f6b3f72dd8bdb60dae5dd2c3e943263bcf/nodes.py#L1454
     """
     img_path = Path(img_path)

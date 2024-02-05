@@ -98,7 +98,8 @@ async def update_watchlist_endpoint(req):
     return web.json_response({
         "success": [i in successful_file_indices for i in range(len(img_fps))],
         "preview_names": preview_names_for_resp,
-        "preview_images_type": "temp"
+        "preview_images_type": "temp",
+        "watchlist_size": len(watchlist),
     })
 
 
