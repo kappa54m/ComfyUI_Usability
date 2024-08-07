@@ -41,6 +41,10 @@ def get_watchlist():
 
 
 def update_watchlist(new_watchlist: typing.List[typing.Dict], expanduser=True):
+    if not using_watchdog:
+        print("Watchlist not updated because watchdog is not installed.")
+        return
+
     with watchdog_mutex:
         for fp, d in watchdog_d.items():
             assert d['observer'] is watchdog_observer
