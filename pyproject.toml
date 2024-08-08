@@ -10,6 +10,6 @@ Repository = "https://github.com/kappa54m/ComfyUI_Usability"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "kappa54"
 DisplayName = "ComfyUI_Usability"
 Icon = ""
