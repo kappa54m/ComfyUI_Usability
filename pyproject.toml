@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_usability"
 description = "Custom nodes intended to improve usability."
-version = "1.0.0"
+version = "1.0.1"
 license = {file = "LICENSE"}
 dependencies = ["watchdog==3.0.0"]
 
