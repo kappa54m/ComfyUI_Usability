@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_usability"
+description = "Custom nodes intended to improve usability."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["watchdog==3.0.0"]
+
+[project.urls]
+Repository = "https://github.com/kappa54m/ComfyUI_Usability"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI_Usability"
+Icon = ""
